@@ -10,27 +10,16 @@ The results are automatically logged to a CSV file for easy comparison.
 
 ## Features
 
-Fine-Tuned YOLOv8n (PyTorch) benchmarking
-
-ONNX Runtime benchmarking
-
-NCNN benchmarking (ultra-light C++ inference engine)
-
-Logs detailed hardware metrics each run:
-
-CPU load and frequency per core
-
-RAM usage and availability
-
-CPU temperature (via vcgencmd)
-
-GPU and ARM memory split
-
-Undervoltage / throttling flags
-
-
-Average, min, max, and std-dev inference times per backend
-
+* Benchmark **Fine-Tuned YOLOv8n (PyTorch)** models.
+* Benchmark models using **ONNX Runtime**.
+* Benchmark models using **NCNN** (an ultra-light C++ inference engine).
+* Calculate **average, min, max, and std-dev** inference times per backend.
+* Log detailed hardware metrics during each run:
+    * CPU load and frequency per core
+    * RAM usage and availability
+    * CPU temperature (via `vcgencmd`)
+    * GPU and ARM memory split
+    * Undervoltage and throttling flags
 
 
 ---
@@ -58,14 +47,12 @@ Tip: For best results, install onnxruntime CPU build (not GPU) — the Pi doesn�
 
 1. Set performance mode to avoid frequency throttling:
 
-sudo raspi-config
-# → Performance Options → CPU Governor → Performance
+sudo raspi-config → Performance Options → CPU Governor → Performance
 
 
 2. Ensure sufficient GPU memory (for NCNN and OpenCV):
 
-sudo raspi-config
-# → Performance Options → GPU Memory → 128 MB
+sudo raspi-config → Performance Options → GPU Memory → 128 MB
 
 
 3. Monitor thermals: Use a heatsink or fan to maintain CPU temperature under 70 °C during testing.
@@ -80,13 +67,16 @@ sudo raspi-config
 
 ## Project Layout
 
-model_benchmark.py       # This script
-image.jpg                   # Test image
-base.pt                     # YOLOv8n (PyTorch) model
-pruned.pt                   # Pruned YOLOv8n model
-pruned_int8.onnx            # Quantized ONNX model
-pruned_int8.ncnn/           # NCNN folder with model.ncnn.param and model.ncnn.bin
-benchmark_results.csv       # Output results
+.
+├── model_benchmark.py
+├── image.jpg
+├── base.pt
+├── pruned.pt
+├── pruned_int8.onnx
+├── pruned_int8.ncnn/
+│   ├── model.ncnn.param
+│   └── model.ncnn.bin
+└── benchmark_results.csv
 
 
 ---
@@ -123,25 +113,6 @@ base.pt (YOLOv8(PyTorch)) — Mean: 302.11 | Min: 295.47 | Max: 309.88 | Std: 4.
 When complete:
 
 Results saved in: benchmark_results.csv
-
-
----
-
-## Notes
-
-Inference times on Pi 4B 8 GB typically range from:
-
-PyTorch: 300–600 ms per frame
-
-ONNX Runtime: 150–350 ms per frame
-
-NCNN (INT8): 80–200 ms per frame
-
-
-Performance depends on model size, quantization, and system cooling.
-
-The CSV log can be analyzed with Excel, pandas, or Grafana to visualize performance trends.
-
 
 
 ---
