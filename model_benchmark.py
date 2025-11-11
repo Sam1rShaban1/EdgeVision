@@ -190,8 +190,8 @@ def test_ncnn(model_dir, writer):
     model_name = model_dir.rstrip("/").split("/")[-1]
     print(f"\n🚀 Testing {model_name} (NCNN)...")
     net = ncnn.Net()
-    net.load_param(f"{model_dir}/model.param")
-    net.load_model(f"{model_dir}/model.bin")
+    net.load_param(f"{model_dir}/model.ncnn.param")
+    net.load_model(f"{model_dir}/model.ncnn,bin")
 
     mat_in = ncnn.Mat.from_pixels_resize(
         image,
@@ -237,11 +237,11 @@ if __name__ == "__main__":
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
 
-        test_yolo_pt("yolov8n.pt", writer)
-        test_yolo_pt("yolov8n_pruned.pt", writer)
-        test_onnx("model.onnx", writer)
+        test_yolo_pt("base.pt", writer)
+        test_yolo_pt("pruned.pt", writer)
+        test_onnx("pruned_int8.onnx", writer)
         try:
-            test_ncnn("model.ncnn", writer)
+            test_ncnn("pruned_int8.ncnn", writer)
         except Exception as e:
             print(f"\nNCNN test skipped or failed: {e}")
 
