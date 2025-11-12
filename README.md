@@ -32,8 +32,8 @@ Install the required dependencies:
 
 ```bash
 sudo apt update
-sudo apt install python3-opencv python3-pip libraspberrypi-bin -y
-pip install ultralytics onnxruntime psutil numpy ncnn
+sudo apt install python3-opencv python3-pip raspi-utils libgl1 -y
+pip install ultralytics onnxruntime psutil numpy ncnn 
 ```
 
 Tip: For best results, install onnxruntime CPU build (not GPU) — the Pi doesn’t support CUDA.
