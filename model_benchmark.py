@@ -204,16 +204,16 @@ def test_ncnn(model_dir, writer):
 
     # warmup
     extractor = net.create_extractor()
-    extractor.input("images", mat_in)
-    _, _ = extractor.extract("output0")
+    extractor.input("in0", mat_in)
+    _, _ = extractor.extract("out0")
 
     times = []
     for i in range(loops):
         metrics_before = get_system_metrics()
         t1 = time.time()
         extractor = net.create_extractor()
-        extractor.input("images", mat_in)
-        _, _ = extractor.extract("output0")
+        extractor.input("in0", mat_in)
+        _, _ = extractor.extract("out0")
         t_infer = (time.time() - t1) * 1000
         metrics_after = get_system_metrics()
 
