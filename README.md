@@ -40,33 +40,11 @@ Tip: For best results, install onnxruntime CPU build (not GPU) — the Pi doesn�
 
 
 
-
----
-
-## System Configuration
-
-1. Set performance mode to avoid frequency throttling:
-
-sudo raspi-config → Performance Options → CPU Governor → Performance
-
-
-2. Ensure sufficient GPU memory (for NCNN and OpenCV):
-
-sudo raspi-config → Performance Options → GPU Memory → 128 MB
-
-
-3. Monitor thermals: Use a heatsink or fan to maintain CPU temperature under 70 °C during testing.
-
-
-4. Use 64-bit OS (Raspberry Pi OS 64-bit) for maximum performance and memory usage.
-
-
-
-
 ---
 
 ## Project Layout
 
+```text
 .
 ├── model_benchmark.py
 ├── image.jpg
@@ -77,7 +55,7 @@ sudo raspi-config → Performance Options → GPU Memory → 128 MB
 │   ├── model.ncnn.param
 │   └── model.ncnn.bin
 └── benchmark_results.csv
-
+```
 
 ---
 
@@ -85,11 +63,12 @@ sudo raspi-config → Performance Options → GPU Memory → 128 MB
 
 Edit these parameters at the top of the script to customize your benchmark:
 
+```text
 image_path = "image.jpg"     # Path to test image
 loops = 20                   # Number of inference runs per model
 input_size = (640, 640)      # Model input resolution
 csv_file = "benchmark_results.csv"  # Output CSV file name
-
+```
 
 ---
 
@@ -100,7 +79,7 @@ Run directly from terminal:
 ```bash
 python3 model_benchmark.py
 ```
-###Example output:
+### Example output:
 
 Starting Benchmark...
 
