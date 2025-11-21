@@ -61,7 +61,7 @@ pip install ultralytics opencv-python-headless pytesseract flask psutil numpy nc
 
 1.  **Clone the repository:**
     ```bash
-    git clone [https://github.com/Sam1rShaban1/PiLPR.git](https://github.com/Sam1rShaban1/PiLPR.git)
+    git clone https://github.com/Sam1rShaban1/PiLPR.git
     cd PiLPR
     ```
 
