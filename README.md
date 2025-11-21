@@ -33,13 +33,50 @@ The application uses a **Producer-Consumer** pattern distributed across three da
     *   **TTL Rendering:** Draws bounding boxes and text only if the detection timestamp is within the valid Time-To-Live (TTL) window.
     *   Resizes the output stream to 1024px width to reduce network bandwidth usage while maintaining internal high-resolution processing.
 
+
+
+## Model Training & Dataset
+
+The object detection model is based on **YOLOv8n (Nano)**, fine-tuned specifically for license plate detection using a large-scale, diverse dataset.
+
+### Dataset Overview
+The model was trained on the **Large License Plate Detection Dataset**, one of the largest publicly available collections for this task. The dataset was compiled by scraping **Google Open Images** and integrating datasets from **Roboflow**.
+
+*   **Total Images:** ~27,900
+*   **Format:** YOLOv8 (Images & `.txt` annotations)
+*   **Class:** Single class (`license_plate`)
+
+### Data Split
+The dataset is strictly organized to ensure robust evaluation:
+
+| Subset | Image Count | Purpose |
+| :--- | :--- | :--- |
+| **Train** | 25,500 | Used for fine-tuning the weights. |
+| **Validation** | 1,000 | Used for hyperparameter tuning and epoch evaluation. |
+| **Test** | 400 | Reserved for final post-training performance metrics. |
+
+### Training and Optimization Strategy
+To achieve optimal performance on the Raspberry Pi 4, the model underwent a two-stage training and optimization process on a **Tesla P100-PCIE-16GB GPU**.
+
+1.  **Baseline Training:**
+    The standard YOLOv8n model was fine-tuned on the 25,500 training images for **50 epochs** to establish baseline accuracy.
+2.  **Pruning & Fine-Tuning:**
+    A **30% unstructured pruning** strategy was applied to the baseline model to reduce model complexity and redundancy. Following the pruning process, the model was fine-tuned for additional epochs to recover accuracy lost during pruning.
+
+| Model Version | Training Time | Epochs | mAP50 | mAP50-95 | Notes |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Baseline** | ~4h 06m | 50 | 0.850 | 0.461 | Standard fine-tuning |
+| **Pruned (30%)** | ~53m | 10-15 | 0.832 | 0.448 | Unstructured pruning + Fine-tuning |
+
+*Note: The pruned model maintains nearly 98% of the baseline accuracy while being significantly more efficient for edge deployment.*
+
 ## Hardware Specifications
 
 *   **Device:** Raspberry Pi 4 Model B (8 GB RAM recommended).
 *   **Camera:** Raspberry Pi HQ Camera (Sony IMX477).
 *   **Storage:** Class 10 / UHS-I MicroSD (High random I/O performance recommended).
 *   **Cooling:** Active cooling (Fan) is mandatory. NCNN inference utilizes NEON vector instructions which generate significant heat (approx. 75°C peak).
-
+*   
 ## Requirements
 
 ### System Dependencies
