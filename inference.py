@@ -9,24 +9,25 @@ import subprocess
 import numpy as np
 from datetime import datetime
 from ultralytics import YOLO
-from flask import Flask, Response, render_template_string
-import ncnn
+from flask import Flask, Response
 
-MODEL_PATH = "/pruned_int8.ncnn" 
+# --- CONFIGURATION ---
+# Point this to the FOLDER created by the export command above
+MODEL_PATH = "pruned_ncnn_model" 
 CSV_FILE = "plate_log.csv"
 
 CAPTURE_WIDTH = 2028
 CAPTURE_HEIGHT = 1520
 FRAMERATE = 30
 
-INFERENCE_SIZE = 416 # 640, 416, 320 
+INFERENCE_SIZE = 416 
 CONF_THRESHOLD = 0.50  
 
-YOLO_INTERVAL_FRAMES = 10 # Run object detection every 10 frames (3 tiems per second)
-
+YOLO_INTERVAL_FRAMES = 10 
 BOX_DISPLAY_TTL = 2.0 
 
 OCR_CONFIG = "--psm 7 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+# ---------------------
 
 shared_data = {
     "boxes": [],
@@ -43,24 +44,6 @@ display_queue = queue.Queue(maxsize=2)
 stop_event = threading.Event()
 
 app = Flask(__name__)
-
-PAGE_HTML = """
-<html>
-  <head>
-    <title>Pi 4 LPR</title>
-    <style>
-      body { background-color: #222; color: #ddd; font-family: monospace; text-align: center; }
-      img { border: 2px solid #555; max-width: 100%; }
-      .status { margin-top: 10px; color: #0f0; }
-    </style>
-  </head>
-  <body>
-    <h1>RPi 4 - NCNN YOLO + OCR</h1>
-    <img src="/video_feed">
-    <div class="status">System Running...</div>
-  </body>
-</html>
-"""
 
 def capture_worker():
     frame_len = int(CAPTURE_WIDTH * CAPTURE_HEIGHT * 1.5)
@@ -109,46 +92,44 @@ def capture_worker():
     print("[INFO] Capture thread stopped.")
   
 def yolo_worker():
-    print("[INFO] Loading Native NCNN Model...")
-    # Initialize NCNN
-    net = ncnn.Net()
-    # Assuming you have 'pruned_int8.param' and 'pruned_int8.bin'
-    net.load_param("pruned_int8.param") 
-    net.load_model("pruned_int8.bin")
-    
-    print("[INFO] NCNN Ready.")
-
-    target_size = INFERENCE_SIZE
-    mean_vals = [103.53, 116.28, 123.675] # Standard YOLO values
-    norm_vals = [1/255.0, 1/255.0, 1/255.0]
+    print("[INFO] Loading NCNN Model...")
+    # Ultralytics will automatically detect this is an NCNN folder and load it correctly
+    model = YOLO(MODEL_PATH, task='detect')
+    print("[INFO] YOLO Ready.")
 
     while not stop_event.is_set():
         try:
             frame = inference_queue.get(timeout=1.0)
         except queue.Empty:
             continue
+        
+        # Run inference using Ultralytics wrapper (handles the NCNN math for you)
+        results = model(frame, imgsz=INFERENCE_SIZE, conf=CONF_THRESHOLD, verbose=False)
+        
+        found_boxes = []
+        h, w, _ = frame.shape
+        
+        if len(results) > 0 and len(results[0].boxes) > 0:
+            for box in results[0].boxes:
+                # Extract coordinates
+                x1, y1, x2, y2 = map(int, box.xyxy[0])
+                
+                # Boundary checks
+                x1, y1 = max(0, x1), max(0, y1)
+                x2, y2 = min(w, x2), min(h, y2)
+                
+                found_boxes.append([x1, y1, x2, y2])
 
-        h, w = frame.shape[:2]
-        
-        # NCNN Preprocessing
-        mat_in = ncnn.Mat.from_pixels_resize(
-            frame, 
-            ncnn.Mat.PixelType.PIXEL_BGR, 
-            w, h, 
-            target_size, target_size
-        )
-        mat_in.substract_mean_normalize(mean_vals, norm_vals)
+                # Send crop to OCR
+                if not ocr_queue.full():
+                    plate_crop = frame[y1:y2, x1:x2]
+                    ocr_queue.put(plate_crop)
 
-        ex = net.create_extractor()
-        ex.input("images", mat_in) # Input layer name often "images" or "in0"
-        
-        # You need to know the output layer names of your specific model
-        # Common for YOLOv8/v5: "output" or "output0"
-        ret, mat_out = ex.extract("output") 
-        
-        # Note: Parsing raw NCNN output requires complex C++ style loop in Python.
-        # It is HIGHLY recommended to use Solution 2 (Ultralytics Export) 
-        # so you can keep using the easy Ultralytics API.
+            with data_lock:
+                shared_data['boxes'] = found_boxes
+                shared_data['last_update'] = time.time()
+        else:
+            pass
 
 def ocr_worker():
     if not os.path.exists(CSV_FILE):
