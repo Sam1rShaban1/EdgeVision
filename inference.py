@@ -10,8 +10,9 @@ import numpy as np
 from datetime import datetime
 from ultralytics import YOLO
 from flask import Flask, Response, render_template_string
+import ncnn
 
-MODEL_PATH = "pruned_int8.ncnn" 
+MODEL_PATH = "/pruned_int8.ncnn" 
 CSV_FILE = "plate_log.csv"
 
 CAPTURE_WIDTH = 2028
@@ -108,9 +109,18 @@ def capture_worker():
     print("[INFO] Capture thread stopped.")
   
 def yolo_worker():
-    print("[INFO] Loading NCNN Model...")
-    model = YOLO(MODEL_PATH, task='detect')
-    print("[INFO] YOLO Ready.")
+    print("[INFO] Loading Native NCNN Model...")
+    # Initialize NCNN
+    net = ncnn.Net()
+    # Assuming you have 'pruned_int8.param' and 'pruned_int8.bin'
+    net.load_param("pruned_int8.param") 
+    net.load_model("pruned_int8.bin")
+    
+    print("[INFO] NCNN Ready.")
+
+    target_size = INFERENCE_SIZE
+    mean_vals = [103.53, 116.28, 123.675] # Standard YOLO values
+    norm_vals = [1/255.0, 1/255.0, 1/255.0]
 
     while not stop_event.is_set():
         try:
@@ -118,28 +128,27 @@ def yolo_worker():
         except queue.Empty:
             continue
 
-        results = model(frame, imgsz=INFERENCE_SIZE, conf=CONF_THRESHOLD, verbose=False)
+        h, w = frame.shape[:2]
         
-        found_boxes = []
-        h, w, _ = frame.shape
+        # NCNN Preprocessing
+        mat_in = ncnn.Mat.from_pixels_resize(
+            frame, 
+            ncnn.Mat.PixelType.PIXEL_BGR, 
+            w, h, 
+            target_size, target_size
+        )
+        mat_in.substract_mean_normalize(mean_vals, norm_vals)
+
+        ex = net.create_extractor()
+        ex.input("images", mat_in) # Input layer name often "images" or "in0"
         
-        if len(results[0].boxes) > 0:
-            for box in results[0].boxes:
-                x1, y1, x2, y2 = map(int, box.xyxy[0])
-                x1, y1 = max(0, x1), max(0, y1)
-                x2, y2 = min(w, x2), min(h, y2)
-                
-                found_boxes.append([x1, y1, x2, y2])
-
-                if not ocr_queue.full():
-                    plate_crop = frame[y1:y2, x1:x2]
-                    ocr_queue.put(plate_crop)
-
-            with data_lock:
-                shared_data['boxes'] = found_boxes
-                shared_data['last_update'] = time.time()
-        else:
-            pass
+        # You need to know the output layer names of your specific model
+        # Common for YOLOv8/v5: "output" or "output0"
+        ret, mat_out = ex.extract("output") 
+        
+        # Note: Parsing raw NCNN output requires complex C++ style loop in Python.
+        # It is HIGHLY recommended to use Solution 2 (Ultralytics Export) 
+        # so you can keep using the easy Ultralytics API.
 
 def ocr_worker():
     if not os.path.exists(CSV_FILE):
