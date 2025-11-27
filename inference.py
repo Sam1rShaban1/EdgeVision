@@ -12,8 +12,8 @@ from ultralytics import YOLO
 from flask import Flask, Response
 
 # --- CONFIGURATION ---
-# Point this to the FOLDER created by the export command above
 MODEL_PATH = "pruned_ncnn_model" 
+
 CSV_FILE = "plate_log.csv"
 
 CAPTURE_WIDTH = 2028
@@ -93,7 +93,6 @@ def capture_worker():
   
 def yolo_worker():
     print("[INFO] Loading NCNN Model...")
-    # Ultralytics will automatically detect this is an NCNN folder and load it correctly
     model = YOLO(MODEL_PATH, task='detect')
     print("[INFO] YOLO Ready.")
 
@@ -103,7 +102,7 @@ def yolo_worker():
         except queue.Empty:
             continue
         
-        # Run inference using Ultralytics wrapper (handles the NCNN math for you)
+        # Run inference
         results = model(frame, imgsz=INFERENCE_SIZE, conf=CONF_THRESHOLD, verbose=False)
         
         found_boxes = []
