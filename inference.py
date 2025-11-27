@@ -18,7 +18,7 @@ CSV_FILE = "plate_log.csv"
 # FIXED: 1920x1080 removes the green diagonal lines (stride mismatch)
 CAPTURE_WIDTH = 1920
 CAPTURE_HEIGHT = 1080
-FRAMERATE = 50
+FRAMERATE = 10
 
 INFERENCE_SIZE = 416 
 CONF_THRESHOLD = 0.50  
@@ -182,7 +182,7 @@ def capture_worker():
         "--gain", "8.0",         # High sensitivity
         # Shutter MUST be faster than 20000 (20ms) to hit 50 FPS.
         # 10000 (10ms) is perfect for LPR to freeze moving cars.
-        "--shutter", "10000",    
+        "--shutter", "20000",    
         "--denoise", "cdn_off",  # Turn off heavy denoising to speed up FPS
         # -------------------------------------
         
