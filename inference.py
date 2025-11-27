@@ -9,11 +9,10 @@ import subprocess
 import numpy as np
 from datetime import datetime
 from ultralytics import YOLO
-from flask import Flask, Response
+from flask import Flask, Response, render_template_string
 
 # --- CONFIGURATION ---
 MODEL_PATH = "pruned_ncnn_model" 
-
 CSV_FILE = "plate_log.csv"
 
 CAPTURE_WIDTH = 2028
@@ -28,6 +27,26 @@ BOX_DISPLAY_TTL = 2.0
 
 OCR_CONFIG = "--psm 7 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 # ---------------------
+
+# --- HTML PAGE STYLE ---
+PAGE_HTML = """
+<html>
+  <head>
+    <title>Pi 4 LPR</title>
+    <style>
+      body { background-color: #222; color: #ddd; font-family: monospace; text-align: center; }
+      img { border: 2px solid #555; max-width: 100%; }
+      .status { margin-top: 10px; color: #0f0; }
+    </style>
+  </head>
+  <body>
+    <h1>RPi 4 - NCNN YOLO + OCR</h1>
+    <img src="/video_feed">
+    <div class="status">System Running...</div>
+  </body>
+</html>
+"""
+# -----------------------
 
 shared_data = {
     "boxes": [],
@@ -102,7 +121,6 @@ def yolo_worker():
         except queue.Empty:
             continue
         
-        # Run inference
         results = model(frame, imgsz=INFERENCE_SIZE, conf=CONF_THRESHOLD, verbose=False)
         
         found_boxes = []
@@ -110,16 +128,12 @@ def yolo_worker():
         
         if len(results) > 0 and len(results[0].boxes) > 0:
             for box in results[0].boxes:
-                # Extract coordinates
                 x1, y1, x2, y2 = map(int, box.xyxy[0])
-                
-                # Boundary checks
                 x1, y1 = max(0, x1), max(0, y1)
                 x2, y2 = min(w, x2), min(h, y2)
                 
                 found_boxes.append([x1, y1, x2, y2])
 
-                # Send crop to OCR
                 if not ocr_queue.full():
                     plate_crop = frame[y1:y2, x1:x2]
                     ocr_queue.put(plate_crop)
@@ -211,9 +225,15 @@ def generate_frames():
         except queue.Empty: continue
         except Exception: break
 
+# --- FLASK ROUTES ---
+@app.route('/')
+def index():
+    return render_template_string(PAGE_HTML)
+
 @app.route('/video_feed')
 def video_feed():
     return Response(generate_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
+# --------------------
 
 if __name__ == "__main__":
     t1 = threading.Thread(target=capture_worker, daemon=True)
