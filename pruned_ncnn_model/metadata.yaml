@@ -1,0 +1,18 @@
+description: Ultralytics pruned model trained on /kaggle/working/data.yaml
+author: Ultralytics
+date: '2025-11-27T12:19:17.770027'
+version: 8.3.228
+license: AGPL-3.0 License (https://ultralytics.com/license)
+docs: https://docs.ultralytics.com
+stride: 32
+task: detect
+batch: 1
+imgsz:
+- 416
+- 416
+names:
+  0: license_plate
+args:
+  batch: 1
+  half: false
+channels: 3
