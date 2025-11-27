@@ -15,8 +15,9 @@ from flask import Flask, Response, render_template_string
 MODEL_PATH = "pruned_ncnn_model" 
 CSV_FILE = "plate_log.csv"
 
-CAPTURE_WIDTH = 2028
-CAPTURE_HEIGHT = 1520
+# CHANGED: Use 1920x1080 to fix the green/distorted image issue
+CAPTURE_WIDTH = 1920
+CAPTURE_HEIGHT = 1080
 FRAMERATE = 30
 
 INFERENCE_SIZE = 416 
@@ -28,7 +29,7 @@ BOX_DISPLAY_TTL = 2.0
 OCR_CONFIG = "--psm 7 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 # ---------------------
 
-# --- HTML PAGE STYLE ---
+# --- HTML PAGE ---
 PAGE_HTML = """
 <html>
   <head>
@@ -46,7 +47,7 @@ PAGE_HTML = """
   </body>
 </html>
 """
-# -----------------------
+# -----------------
 
 shared_data = {
     "boxes": [],
@@ -64,7 +65,11 @@ stop_event = threading.Event()
 
 app = Flask(__name__)
 
+# Global variable for the model
+yolo_model = None
+
 def capture_worker():
+    # Calculate frame size for YUV420
     frame_len = int(CAPTURE_WIDTH * CAPTURE_HEIGHT * 1.5)
     
     cmd = [
@@ -96,10 +101,12 @@ def capture_worker():
             
             frame_counter += 1
 
+            # Put frame in inference queue every N frames
             if frame_counter % YOLO_INTERVAL_FRAMES == 0:
                 if inference_queue.empty():
                     inference_queue.put(frame.copy())
 
+            # Put frame in display queue (non-blocking)
             if not display_queue.full():
                 display_queue.put(frame)
 
@@ -111,9 +118,9 @@ def capture_worker():
     print("[INFO] Capture thread stopped.")
   
 def yolo_worker():
-    print("[INFO] Loading NCNN Model...")
-    model = YOLO(MODEL_PATH, task='detect')
-    print("[INFO] YOLO Ready.")
+    # We use the globally loaded model here
+    global yolo_model
+    print("[INFO] YOLO Worker started.")
 
     while not stop_event.is_set():
         try:
@@ -121,7 +128,8 @@ def yolo_worker():
         except queue.Empty:
             continue
         
-        results = model(frame, imgsz=INFERENCE_SIZE, conf=CONF_THRESHOLD, verbose=False)
+        # Run inference
+        results = yolo_model(frame, imgsz=INFERENCE_SIZE, conf=CONF_THRESHOLD, verbose=False)
         
         found_boxes = []
         h, w, _ = frame.shape
@@ -141,8 +149,6 @@ def yolo_worker():
             with data_lock:
                 shared_data['boxes'] = found_boxes
                 shared_data['last_update'] = time.time()
-        else:
-            pass
 
 def ocr_worker():
     if not os.path.exists(CSV_FILE):
@@ -184,15 +190,14 @@ def ocr_worker():
 
 def generate_frames():
     box_color = (0, 255, 0)
-    
     while True:
         try:
             frame = display_queue.get(timeout=1.0)
             
+            # Resize for web viewing (lighter on bandwidth)
             display_h, display_w = frame.shape[:2]
             target_w = 1024
             target_h = int(target_w * (display_h / display_w))
-            
             view_frame = cv2.resize(frame, (target_w, target_h))
             
             scale_x = target_w / display_w
@@ -225,7 +230,6 @@ def generate_frames():
         except queue.Empty: continue
         except Exception: break
 
-# --- FLASK ROUTES ---
 @app.route('/')
 def index():
     return render_template_string(PAGE_HTML)
@@ -233,15 +237,30 @@ def index():
 @app.route('/video_feed')
 def video_feed():
     return Response(generate_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
-# --------------------
 
 if __name__ == "__main__":
+    # ---------------------------------------------------------
+    # LOAD MODEL HERE (Main Thread) to prevent freezing
+    # ---------------------------------------------------------
+    print("[INFO] Loading NCNN Model (Global Scope)...")
+    try:
+        yolo_model = YOLO(MODEL_PATH, task='detect')
+        # Run one dummy inference to "warm up" the model
+        print("[INFO] Warming up model...")
+        dummy_frame = np.zeros((INFERENCE_SIZE, INFERENCE_SIZE, 3), dtype=np.uint8)
+        yolo_model(dummy_frame, imgsz=INFERENCE_SIZE, verbose=False)
+        print("[INFO] YOLO Ready.")
+    except Exception as e:
+        print(f"[CRITICAL ERROR] Could not load model: {e}")
+        exit(1)
+    # ---------------------------------------------------------
+
     t1 = threading.Thread(target=capture_worker, daemon=True)
     t2 = threading.Thread(target=yolo_worker, daemon=True)
     t3 = threading.Thread(target=ocr_worker, daemon=True)
 
     t1.start()
-    time.sleep(1)
+    time.sleep(1) # Let camera warm up
     t2.start()
     t3.start()
 
