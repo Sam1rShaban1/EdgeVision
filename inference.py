@@ -18,12 +18,12 @@ CSV_FILE = "plate_log.csv"
 # FIXED: 1920x1080 removes the green diagonal lines (stride mismatch)
 CAPTURE_WIDTH = 1920
 CAPTURE_HEIGHT = 1080
-FRAMERATE = 30
+FRAMERATE = 50
 
 INFERENCE_SIZE = 416 
 CONF_THRESHOLD = 0.50  
 
-YOLO_INTERVAL_FRAMES = 10 
+YOLO_INTERVAL_FRAMES = 15
 BOX_DISPLAY_TTL = 2.0 
 
 OCR_CONFIG = "--psm 7 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
@@ -175,10 +175,21 @@ def capture_worker():
         "--width", str(CAPTURE_WIDTH), 
         "--height", str(CAPTURE_HEIGHT),
         "--framerate", str(FRAMERATE), 
-        "--codec", "yuv420", "--nopreview", "-o", "-"
+        "--codec", "yuv420", "--nopreview", 
+        
+        # --- 50 FPS & FLICKER FIX SETTINGS ---
+        "--awb", "indoor",       # Indoor colors
+        "--gain", "8.0",         # High sensitivity
+        # Shutter MUST be faster than 20000 (20ms) to hit 50 FPS.
+        # 10000 (10ms) is perfect for LPR to freeze moving cars.
+        "--shutter", "10000",    
+        "--denoise", "cdn_off",  # Turn off heavy denoising to speed up FPS
+        # -------------------------------------
+        
+        "-o", "-"
     ]
 
-    print(f"[INFO] Starting HQ Stream {CAPTURE_WIDTH}x{CAPTURE_HEIGHT}...")
+    print(f"[INFO] Starting HQ Stream {CAPTURE_WIDTH}x{CAPTURE_HEIGHT} @ {FRAMERATE} FPS...")
     
     try:
         process = subprocess.Popen(cmd, stdout=subprocess.PIPE, bufsize=10**7)
