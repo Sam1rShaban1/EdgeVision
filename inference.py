@@ -31,20 +31,120 @@ OCR_CONFIG = "--psm 7 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZ01234
 
 # --- HTML PAGE ---
 PAGE_HTML = """
-<html>
-  <head>
-    <title>Pi 4 LPR</title>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pi 4 LPR Security Feed</title>
     <style>
-      body { background-color: #222; color: #ddd; font-family: monospace; text-align: center; }
-      img { border: 2px solid #555; max-width: 100%; }
-      .status { margin-top: 10px; color: #0f0; }
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #000;
+            overflow: hidden; /* Hide scrollbars */
+            font-family: 'Courier New', Courier, monospace;
+        }
+        
+        /* The Video Feed */
+        #video-feed {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: contain; /* Keeps aspect ratio correct */
+            z-index: 1;
+        }
+
+        /* The Overlay HUD */
+        .hud {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 2;
+            color: #0f0; /* Matrix Green */
+            background: rgba(0, 0, 0, 0.6);
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #0f0;
+            box-shadow: 0 0 10px rgba(0, 255, 0, 0.2);
+            pointer-events: none; /* Let clicks pass through to video */
+        }
+
+        h1 {
+            margin: 0 0 5px 0;
+            font-size: 1.2rem;
+            text-transform: uppercase;
+        }
+
+        .status {
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+        }
+
+        .rec-dot {
+            height: 12px;
+            width: 12px;
+            background-color: red;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 10px;
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink {
+            0% { opacity: 1; }
+            50% { opacity: 0; }
+            100% { opacity: 1; }
+        }
+        
+        /* Hint text at bottom */
+        .hint {
+            position: absolute;
+            bottom: 10px;
+            width: 100%;
+            text-align: center;
+            color: #555;
+            z-index: 2;
+            font-size: 0.8rem;
+            pointer-events: none;
+        }
     </style>
-  </head>
-  <body>
-    <h1>RPi 4 - NCNN YOLO + OCR</h1>
-    <img src="/video_feed">
-    <div class="status">System Running...</div>
-  </body>
+</head>
+<body>
+    
+    <!-- Video Feed -->
+    <img id="video-feed" src="/video_feed" ondblclick="toggleFullScreen()">
+
+    <!-- Heads Up Display -->
+    <div class="hud">
+        <h1>RPi 4 LPR</h1>
+        <div class="status">
+            <span class="rec-dot"></span> LIVE FEED | NCNN ACTIVE
+        </div>
+    </div>
+
+    <div class="hint">Double-click video for True Full Screen</div>
+
+    <script>
+        function toggleFullScreen() {
+            var elem = document.documentElement;
+            if (!document.fullscreenElement) {
+                elem.requestFullscreen().catch(err => {
+                    console.log(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
+                });
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                }
+            }
+        }
+    </script>
+</body>
 </html>
 """
 
