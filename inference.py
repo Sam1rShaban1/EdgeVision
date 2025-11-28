@@ -15,10 +15,10 @@ from flask import Flask, Response, render_template_string
 MODEL_PATH = "pruned_ncnn_model" 
 CSV_FILE = "plate_log.csv"
 
-# FIXED: 1920x1080 removes the green diagonal lines (stride mismatch)
+
 CAPTURE_WIDTH = 1920
 CAPTURE_HEIGHT = 1080
-FRAMERATE = 10
+FRAMERATE = 25
 
 INFERENCE_SIZE = 416 
 CONF_THRESHOLD = 0.50  
@@ -26,7 +26,7 @@ CONF_THRESHOLD = 0.50
 YOLO_INTERVAL_FRAMES = 15
 BOX_DISPLAY_TTL = 2.0 
 
-OCR_CONFIG = "--psm 7 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+OCR_CONFIG = "--oem 1 --psm 7 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 # ---------------------
 
 # --- HTML PAGE ---
@@ -177,11 +177,8 @@ def capture_worker():
         "--framerate", str(FRAMERATE), 
         "--codec", "yuv420", "--nopreview", 
         
-        # --- 50 FPS & FLICKER FIX SETTINGS ---
         "--awb", "indoor",       # Indoor colors
         "--gain", "8.0",         # High sensitivity
-        # Shutter MUST be faster than 20000 (20ms) to hit 50 FPS.
-        # 10000 (10ms) is perfect for LPR to freeze moving cars.
         "--shutter", "20000",    
         "--denoise", "cdn_off",  # Turn off heavy denoising to speed up FPS
         # -------------------------------------
