@@ -255,6 +255,7 @@ def yolo_worker():
                 shared_data['last_update'] = time.time()
 
 def ocr_worker():
+    # Ensure CSV exists
     if not os.path.exists(CSV_FILE):
         with open(CSV_FILE, 'w', newline='') as f:
             csv.writer(f).writerow(["Timestamp", "Text"])
@@ -271,18 +272,29 @@ def ocr_worker():
             continue
 
         gray = cv2.cvtColor(plate_img, cv2.COLOR_BGR2GRAY)
-        gray = cv2.resize(gray, None, fx=2, fy=2, interpolation=cv2.INTER_CUBIC)
+
+
+        target_h = 180
+        scale = target_h / gray.shape[0]
+        gray = cv2.resize(gray, (int(gray.shape[1]*scale), target_h), interpolation=cv2.INTER_LINEAR)
+
+        gray = cv2.GaussianBlur(gray, (3, 3), 0)
+        kernel = np.array([[0, -1, 0], [-1, 5, -1], [0, -1, 0]])
+        gray = cv2.filter2D(gray, -1, kernel)
+
+        # Threshold for high contrast
         _, thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
 
+ 
         text = pytesseract.image_to_string(thresh, config=OCR_CONFIG)
         clean_text = "".join(text.split()).strip()
 
         if len(clean_text) >= 3:
             current_time = time.time()
-            
+
             with data_lock:
                 shared_data['text'] = clean_text
-                shared_data['last_update'] = current_time 
+                shared_data['last_update'] = current_time
 
             if (clean_text != last_logged_text) or (current_time - last_logged_time > 5.0):
                 timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
