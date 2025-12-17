@@ -1,0 +1,21 @@
+# Environment
+.venv/
+__pycache__/
+*.pyc
+
+# InsightFace Models
+.insightface/
+
+# Local Model Directory
+models/
+
+# Binary Model Files
+*.onnx
+*.pth
+
+# Database/Embeddings
+*.pkl
+
+# Logs
+*.csv
+*.log

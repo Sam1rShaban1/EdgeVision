@@ -8,7 +8,7 @@ from insightface.app import FaceAnalysis
 # =========================================================================
 #  CONFIGURATION
 # =========================================================================
-CURRENT_MODEL = "buffalo_s"  # Change to "buffalo_s" for Pi
+CURRENT_MODEL = "buffalo_sc"  # Change to "buffalo_sc" for Pi
 
 CONFIG = {
     # Use f-string to inject the variable
