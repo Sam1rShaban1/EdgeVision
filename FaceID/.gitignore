@@ -14,7 +14,7 @@ models/
 *.pth
 
 # Database/Embeddings
-*.pkl
+# *.pkl
 
 # Logs
 *.csv
