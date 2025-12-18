@@ -43,11 +43,12 @@ STATE = SharedState()
 # =========================================================================
 # VIDEO CAPTURE THREAD
 # =========================================================================
+# THREAD 1: VIDEO CAPTURE USING LIBCAMERA
 class VideoCaptureThread(threading.Thread):
     def __init__(self, state):
         super().__init__(daemon=True)
         self.state = state
-        self.frame_len = CONFIG["STREAM_WIDTH"] * CONFIG["STREAM_HEIGHT"] * 3 // 2  # YUV420
+        self.frame_len = int(CONFIG["STREAM_WIDTH"] * CONFIG["STREAM_HEIGHT"] * 1.5)  # YUV420
 
     def run(self):
         cmd = [
@@ -55,25 +56,34 @@ class VideoCaptureThread(threading.Thread):
             "--nopreview",
             "--width", str(CONFIG["STREAM_WIDTH"]),
             "--height", str(CONFIG["STREAM_HEIGHT"]),
-            "--framerate", str(CONFIG["FRAMERATE"]),
+            "--framerate", "25",
             "--codec", "yuv420",
             "-o", "-"
         ]
-        print(f"[INFO] Starting camera subprocess: {' '.join(cmd)}")
-        process = subprocess.Popen(cmd, stdout=subprocess.PIPE, bufsize=10**7)
+        print("[INFO] Starting HQ Camera subprocess...")
+        try:
+            process = subprocess.Popen(cmd, stdout=subprocess.PIPE, bufsize=10**7)
+        except FileNotFoundError:
+            print("[ERROR] libcamera-vid not found. Make sure it's installed and on PATH.")
+            return
 
         while self.state.running:
-            raw = process.stdout.read(self.frame_len)
-            if len(raw) != self.frame_len:
+            raw_data = process.stdout.read(self.frame_len)
+            if len(raw_data) != self.frame_len:
+                time.sleep(0.01)
                 continue
-            yuv = np.frombuffer(raw, dtype=np.uint8).reshape((CONFIG["STREAM_HEIGHT"]*3//2, CONFIG["STREAM_WIDTH"]))
-            frame = cv2.cvtColor(yuv, cv2.COLOR_YUV2BGR_I420)
+
+            yuv_image = np.frombuffer(raw_data, dtype=np.uint8).reshape(
+                (int(CONFIG["STREAM_HEIGHT"] * 1.5), CONFIG["STREAM_WIDTH"])
+            )
+            frame = cv2.cvtColor(yuv_image, cv2.COLOR_YUV2BGR_I420)
 
             with self.state.frame_lock:
                 self.state.frame = frame
 
         process.terminate()
-        print("[INFO] Capture thread stopped.")
+        print("[INFO] Video capture stopped.")
+
 
 # =========================================================================
 # AI INFERENCE THREAD
