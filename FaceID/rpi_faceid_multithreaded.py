@@ -50,7 +50,9 @@ class VideoCaptureThread(threading.Thread):
         super().__init__(daemon=True)
         self.state = state
         self.picam2 = Picamera2()
-        config = self.picam2.create_preview_configuration(main={"size": (CONFIG["STREAM_WIDTH"], CONFIG["STREAM_HEIGHT"])})
+        config = self.picam2.create_preview_configuration(
+            main={"size": (CONFIG["STREAM_WIDTH"], CONFIG["STREAM_HEIGHT"])}
+        )
         self.picam2.configure(config)
         self.picam2.start()
 
@@ -58,12 +60,19 @@ class VideoCaptureThread(threading.Thread):
         print("Picamera2 Thread Started.")
         while self.state.running:
             frame = self.picam2.capture_array()
-            # Convert to BGR if it has alpha channel
+
+            # Correct color conversion for OpenCV
             if frame.shape[2] == 4:
-                frame = cv2.cvtColor(frame, cv2.COLOR_BGRA2BGR)
+                # Picamera2 gives XBGR8888 → convert to BGR
+                frame = cv2.cvtColor(frame, cv2.COLOR_RGBA2BGR)
+            elif frame.shape[2] == 3:
+                frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+
             with self.state.frame_lock:
                 self.state.frame = frame.copy()
+
             time.sleep(0.02)
+
 
 
 # =========================================================================
