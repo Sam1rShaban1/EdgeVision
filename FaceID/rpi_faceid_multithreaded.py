@@ -63,11 +63,12 @@ class VideoCaptureThread(threading.Thread):
 
     def run(self):
         print(f"Initializing Camera Index {CONFIG['CAMERA_ID']}...")
-        cap = cv2.VideoCapture(CONFIG["CAMERA_ID"])
+        cap = cv2.VideoCapture(CONFIG["CAMERA_ID"], cv2.CAP_V4L2)
+
         
         # Performance optimization for Pi Camera / USB
         # Force MJPG mode if available to reduce USB bandwidth overhead
-        cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
+        # cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
         
         # Set HD Resolution
         cap.set(cv2.CAP_PROP_FRAME_WIDTH, CONFIG["STREAM_WIDTH"])
