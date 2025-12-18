@@ -83,31 +83,31 @@ class AIInferenceThread(threading.Thread):
         super().__init__(daemon=True)
         self.state = state
         self.load_resources()
+        
+        # Scaling factors
         self.scale_x = CONFIG["STREAM_WIDTH"] / CONFIG["INFER_WIDTH"]
         self.scale_y = CONFIG["STREAM_HEIGHT"] / CONFIG["INFER_HEIGHT"]
-
-    def load_resources(self):
-        if not os.path.exists(CONFIG["DB_PATH"]):
-            print(f"Database {CONFIG['DB_PATH']} not found!")
-            exit(1)
-        with open(CONFIG["DB_PATH"], "rb") as f:
-            self.db = pickle.load(f)
-        print(f"[INFO] Loaded {len(self.db)} identities")
-
-        print(f"[INFO] Loading InsightFace model {CURRENT_MODEL}...")
-        self.app = FaceAnalysis(name=CURRENT_MODEL, root='.')
-        self.app.prepare(ctx_id=-1, det_size=(640,640))
-        print("[INFO] Model ready.")
+        
+        self.frame_counter = 0
 
     def run(self):
+        print("Inference Thread Started (Frame Skipping: 2)")
+        
         while self.state.running:
             with self.state.frame_lock:
                 if self.state.frame is None:
-                    time.sleep(0.05)
+                    time.sleep(0.01)
                     continue
-                hd_frame = self.state.frame.copy()
+                hd_input = self.state.frame
 
-            small_frame = cv2.resize(hd_frame, (CONFIG["INFER_WIDTH"], CONFIG["INFER_HEIGHT"]))
+            self.frame_counter += 1
+            if self.frame_counter % 2 != 0:
+
+                time.sleep(0.01)
+                continue 
+
+            small_frame = cv2.resize(hd_input, (CONFIG["INFER_WIDTH"], CONFIG["INFER_HEIGHT"]))
+            
             faces = self.app.get(small_frame)
             results = []
 
