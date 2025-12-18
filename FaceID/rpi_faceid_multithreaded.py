@@ -9,6 +9,7 @@ from datetime import datetime
 from flask import Flask, Response, render_template_string
 from insightface.app import FaceAnalysis
 import subprocess
+from picamera2 import Picamera2, Preview
 
 # =========================================================================
 # CONFIG
@@ -48,41 +49,18 @@ class VideoCaptureThread(threading.Thread):
     def __init__(self, state):
         super().__init__(daemon=True)
         self.state = state
-        self.frame_len = int(CONFIG["STREAM_WIDTH"] * CONFIG["STREAM_HEIGHT"] * 1.5)  # YUV420
+        self.picam2 = Picamera2()
+        config = self.picam2.create_preview_configuration(main={"size": (CONFIG["STREAM_WIDTH"], CONFIG["STREAM_HEIGHT"])})
+        self.picam2.configure(config)
+        self.picam2.start()
 
     def run(self):
-        cmd = [
-            "libcamera-vid",
-            "--nopreview",
-            "--width", str(CONFIG["STREAM_WIDTH"]),
-            "--height", str(CONFIG["STREAM_HEIGHT"]),
-            "--framerate", "25",
-            "--codec", "yuv420",
-            "-o", "-"
-        ]
-        print("[INFO] Starting HQ Camera subprocess...")
-        try:
-            process = subprocess.Popen(cmd, stdout=subprocess.PIPE, bufsize=10**7)
-        except FileNotFoundError:
-            print("[ERROR] libcamera-vid not found. Make sure it's installed and on PATH.")
-            return
-
+        print("Picamera2 Thread Started.")
         while self.state.running:
-            raw_data = process.stdout.read(self.frame_len)
-            if len(raw_data) != self.frame_len:
-                time.sleep(0.01)
-                continue
-
-            yuv_image = np.frombuffer(raw_data, dtype=np.uint8).reshape(
-                (int(CONFIG["STREAM_HEIGHT"] * 1.5), CONFIG["STREAM_WIDTH"])
-            )
-            frame = cv2.cvtColor(yuv_image, cv2.COLOR_YUV2BGR_I420)
-
+            frame = self.picam2.capture_array()
             with self.state.frame_lock:
-                self.state.frame = frame
-
-        process.terminate()
-        print("[INFO] Video capture stopped.")
+                self.state.frame = frame.copy()
+            time.sleep(0.02)
 
 
 # =========================================================================
