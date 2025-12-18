@@ -58,6 +58,9 @@ class VideoCaptureThread(threading.Thread):
         print("Picamera2 Thread Started.")
         while self.state.running:
             frame = self.picam2.capture_array()
+            # Convert to BGR if it has alpha channel
+            if frame.shape[2] == 4:
+                frame = cv2.cvtColor(frame, cv2.COLOR_BGRA2BGR)
             with self.state.frame_lock:
                 self.state.frame = frame.copy()
             time.sleep(0.02)
