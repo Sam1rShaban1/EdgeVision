@@ -12,8 +12,10 @@ from insightface.app import FaceAnalysis
 # =========================================================================
 #  CONFIGURATION
 # =========================================================================
+CURRENT_MODEL = "buffalo_sc"
+
 CONFIG = {
-    "DB_PATH": "pi4_embeddings.pkl",
+    "DB_PATH": f"embeddings_{CURRENT_MODEL}.pkl",
     "THRESHOLD": 0.50,
     
     # CAMERA SELECTION
@@ -22,7 +24,7 @@ CONFIG = {
     
     # MODEL SELECTION
     # Use 'buffalo_sc' for best performance on Pi 4 CPU
-    "DETECTOR_MODEL": "buffalo_sc",
+    "DETECTOR_MODEL": CURRENT_MODEL,
     
     # RESOLUTION SETTINGS
     # Stream: What you see in the browser (HD)
