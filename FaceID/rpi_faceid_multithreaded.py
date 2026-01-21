@@ -10,6 +10,7 @@ from flask import Flask, Response, render_template_string
 from insightface.app import FaceAnalysis
 import subprocess
 from picamera2 import Picamera2, Preview
+import onnxruntime as ort
 
 # =========================================================================
 # CONFIG
@@ -24,7 +25,9 @@ CONFIG = {
     "INFER_HEIGHT": 480,
     "CSV_LOG_PATH": "face_log.csv",
     "FLASK_PORT": 5000,
-    "FRAMERATE": 25
+    "FRAMERATE": 25,
+    "INFER_FPS": 4,
+    "STREAM_FPS": 10
 }
 
 # =========================================================================
@@ -44,7 +47,6 @@ STATE = SharedState()
 # =========================================================================
 # VIDEO CAPTURE THREAD
 # =========================================================================
-# THREAD 1: VIDEO CAPTURE USING LIBCAMERA
 class VideoCaptureThread(threading.Thread):
     def __init__(self, state):
         super().__init__(daemon=True)
@@ -61,19 +63,15 @@ class VideoCaptureThread(threading.Thread):
         while self.state.running:
             frame = self.picam2.capture_array()
 
-            # Correct color conversion for OpenCV
             if frame.shape[2] == 4:
-                # Picamera2 gives XBGR8888 → convert to BGR
                 frame = cv2.cvtColor(frame, cv2.COLOR_RGBA2BGR)
             elif frame.shape[2] == 3:
                 frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
 
             with self.state.frame_lock:
-                self.state.frame = frame.copy()
+                self.state.frame = frame
 
             time.sleep(0.02)
-
-
 
 # =========================================================================
 # AI INFERENCE THREAD
@@ -83,31 +81,50 @@ class AIInferenceThread(threading.Thread):
         super().__init__(daemon=True)
         self.state = state
         self.load_resources()
-        
-        # Scaling factors
         self.scale_x = CONFIG["STREAM_WIDTH"] / CONFIG["INFER_WIDTH"]
         self.scale_y = CONFIG["STREAM_HEIGHT"] / CONFIG["INFER_HEIGHT"]
-        
-        self.frame_counter = 0
+        self.last_infer = 0
+        self.infer_interval = 1.0 / CONFIG["INFER_FPS"]
+
+    def load_resources(self):
+        # Force CPU threads to 2 for Pi
+        so = ort.SessionOptions()
+        so.intra_op_num_threads = 2
+        so.inter_op_num_threads = 1
+        so.execution_mode = ort.ExecutionMode.ORT_SEQUENTIAL
+
+        self.app = FaceAnalysis(
+            name=CURRENT_MODEL,
+            providers=["CPUExecutionProvider"],
+            sess_options=so
+        )
+        self.app.prepare(ctx_id=0, det_size=(CONFIG["INFER_WIDTH"], CONFIG["INFER_HEIGHT"]))
+
+        if os.path.exists(CONFIG["DB_PATH"]):
+            with open(CONFIG["DB_PATH"], "rb") as f:
+                self.db = pickle.load(f)
+        else:
+            self.db = {}
+        self.last_seen = {}
 
     def run(self):
-        print("Inference Thread Started (Frame Skipping: 2)")
-        
+        print(f"Inference Thread Started (~{CONFIG['INFER_FPS']} FPS)")
+
         while self.state.running:
             with self.state.frame_lock:
                 if self.state.frame is None:
                     time.sleep(0.01)
                     continue
-                hd_input = self.state.frame
+                hd_frame = self.state.frame
 
-            self.frame_counter += 1
-            if self.frame_counter % 2 != 0:
+            now = time.time()
+            if now - self.last_infer < self.infer_interval:
+                time.sleep(0.005)
+                continue
+            self.last_infer = now
 
-                time.sleep(0.01)
-                continue 
-
-            small_frame = cv2.resize(hd_input, (CONFIG["INFER_WIDTH"], CONFIG["INFER_HEIGHT"]))
-            
+            # Resize for inference
+            small_frame = cv2.resize(hd_frame, (CONFIG["INFER_WIDTH"], CONFIG["INFER_HEIGHT"]))
             faces = self.app.get(small_frame)
             results = []
 
@@ -148,8 +165,12 @@ class AIInferenceThread(threading.Thread):
                     "color": color
                 })
 
+                # Log only if cooldown elapsed
                 if final_name != "Unknown":
-                    self.state.log_queue.put((final_name, best_score))
+                    last = self.last_seen.get(final_name, 0)
+                    if now - last > 2:  # 2s cooldown
+                        self.state.log_queue.put((final_name, best_score))
+                        self.last_seen[final_name] = now
 
             with self.state.det_lock:
                 self.state.latest_detections = results
@@ -199,10 +220,17 @@ def index():
     """, w=CONFIG["STREAM_WIDTH"], h=CONFIG["STREAM_HEIGHT"])
 
 def generate_frames():
+    last_frame = 0
+    interval = 1.0 / CONFIG["STREAM_FPS"]
     while STATE.running:
+        now = time.time()
+        if now - last_frame < interval:
+            time.sleep(0.005)
+            continue
+        last_frame = now
+
         with STATE.frame_lock:
             if STATE.frame is None:
-                time.sleep(0.02)
                 continue
             display_frame = STATE.frame.copy()
 
