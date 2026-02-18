@@ -1,0 +1,22 @@
+# EdgeVision People Counting System Requirements
+# Install with: pip install -r requirements_people_counter.txt
+
+# Core Computer Vision
+opencv-contrib-python>=4.11.0.86
+numpy>=2.3.5
+
+# Face Recognition
+insightface>=0.7.3
+onnxruntime>=1.23.2
+
+# Web Framework
+flask>=3.1.2
+
+# Data Processing
+scikit-learn>=1.8.0
+
+# Raspberry Pi Camera Support (uncomment on Pi 4)
+# picamera2>=0.3.12
+
+# System Monitoring (optional)
+# psutil>=5.9.0

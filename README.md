@@ -1,6 +1,6 @@
 # EdgeVision: Integrated Edge AI Suite
 
-EdgeVision is a collection of high-performance computer vision pipelines optimized for heterogeneous hardware. This suite contains two primary engines: a multi-modal Face Recognition system and an Int8-quantized License Plate Recognition (LPR) system. Both are engineered to maintain High Definition video streams while performing asynchronous AI inference on edge-constrained devices like the Raspberry Pi 4.
+EdgeVision is a collection of high-performance computer vision pipelines optimized for heterogeneous hardware. This suite contains three primary engines: a multi-modal Face Recognition system, an Int8-quantized License Plate Recognition (LPR) system, and an advanced People Counting & Analytics system. All are engineered to maintain High Definition video streams while performing asynchronous AI inference on edge-constrained devices like the Raspberry Pi 4.
 
 ---
 

@@ -4,9 +4,10 @@ This guide provides essential information for AI agents working on the EdgeVisio
 
 ## Project Overview
 
-EdgeVision consists of two primary engines:
+EdgeVision consists of three primary engines:
 - **FaceID**: Multi-modal biometric recognition using InsightFace framework
 - **PiLPR**: Real-time License Plate Recognition using quantized YOLOv8 + NCNN
+- **People Counter**: Advanced foot traffic tracking with dwell time analysis and real-time analytics
 
 Both systems are engineered for HD video streaming with asynchronous AI inference on edge-constrained devices.
 
@@ -26,6 +27,9 @@ source .venv/bin/activate  # Linux/Mac
 
 # Install dependencies for FaceID
 cd FaceID && uv sync
+
+# Install dependencies for People Counter
+cd FaceID && pip install -r requirements_people_counter.txt
 
 # Install dependencies for PiLPR (manual for now)
 cd PiLPR && pip install ultralytics opencv-python-headless pytesseract flask psutil numpy ncnn
@@ -49,6 +53,12 @@ ruff check . --fix && ruff format .
 # Test database generation
 cd FaceID
 python try.py                  # Interactive DB generation with clustering
+
+# Test people counter system
+python test_people_counter.py  # Unit tests for people counting
+python people_counter.py       # Start people counting system
+# Dashboard available at http://localhost:5001
+```
 
 # Benchmark face recognition performance
 python -c "
@@ -109,6 +119,10 @@ python faceeid.py             # GUI-based testing with D key toggle
 # Test full FaceID pipeline (Pi 4)
 python rpi_faceid_multithreaded.py &
 curl http://localhost:5000   # Test MJPEG stream
+
+# Test people counter dashboard
+python people_counter.py &
+curl http://localhost:5001   # Test analytics dashboard
 
 # Test full PiLPR pipeline
 cd PiLPR
